@@ -1,12 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { Wallet, Settings, Plus, Minus, History, Sparkles, Shield, User, RefreshCw } from 'lucide-vue-next'
-// モーダルコンポーネントのインポート
 import TransactionModal from '~/components/TransactionModal.vue'
-
-// リアクティブな状態管理（NuxtのuseStateを使用）
-const balance = useState<number>('balance', () => 1200)
-const isParentMode = useState<boolean>('isParentMode', () => false)
+import { getStateFromIDB, saveStateToIDB } from '~/utils/db'
 
 interface HistoryItem {
   id: number
@@ -16,39 +12,70 @@ interface HistoryItem {
   date: string
 }
 
+// リアクティブな状態管理
+const balance = useState<number>('balance', () => 1200)
+const isParentMode = useState<boolean>('isParentMode', () => false)
 const history = useState<HistoryItem[]>('history', () => [
   { id: 1, type: 'in', title: 'おこづかい', amount: 500, date: '8/15' },
   { id: 2, type: 'out', title: 'ジュース', amount: 120, date: '8/16' }
 ])
 
-// モーダルの状態管理
 const isModalOpen = ref(false)
 const modalType = ref<'in' | 'out'>('in')
+const isLoaded = ref(false) // 初回ロード完了フラグ（初期値による上書き防止）
 
-// モーダルを開く
+// ----------------------------------------------------
+// IndexedDB からのデータ復元 & 自動保存
+// ----------------------------------------------------
+onMounted(async () => {
+  try {
+    const savedBalance = await getStateFromIDB<number>('balance')
+    const savedHistory = await getStateFromIDB<HistoryItem[]>('history')
+
+    if (savedBalance !== undefined) balance.value = savedBalance
+    if (savedHistory !== undefined) history.value = savedHistory
+  } catch (e) {
+    console.error('IndexedDB ロード失敗:', e)
+  } finally {
+    isLoaded.value = true
+  }
+})
+
+// 状態が変化したら IndexedDB へ自動保存（ロード完了後のみ実行）
+watch(balance, (newVal) => {
+  if (isLoaded.value) saveStateToIDB('balance', newVal)
+})
+
+watch(
+  history,
+  (newVal) => {
+    if (isLoaded.value) saveStateToIDB('history', newVal)
+  },
+  { deep: true }
+)
+
+// ----------------------------------------------------
+// アクション処理
+// ----------------------------------------------------
 const openModal = (type: 'in' | 'out') => {
   modalType.value = type
   isModalOpen.value = true
 }
 
-// モーダルからの送信イベントハンドラー
 const handleTransactionSubmit = (data: { amount: number; title: string; type: 'in' | 'out' }) => {
   const amountNum = Number(data.amount)
 
-  // 支出（out）の場合の残高チェック
   if (data.type === 'out' && balance.value < amountNum) {
     alert('おかねが たりないよ！')
     return
   }
 
-  // 残高の更新
   if (data.type === 'in') {
     balance.value += amountNum
   } else {
     balance.value -= amountNum
   }
 
-  // 履歴への追加
   history.value.unshift({
     id: Date.now(),
     type: data.type,
@@ -58,7 +85,6 @@ const handleTransactionSubmit = (data: { amount: number; title: string; type: 'i
   })
 }
 
-// 開発用直接追加・消費関数（デバッグパネル用）
 const handleAddDirect = (amount: number, title: string) => {
   balance.value += amount
   history.value.unshift({
@@ -85,26 +111,25 @@ const handleUseDirect = (amount: number, title: string) => {
   })
 }
 
-// 開発用リセット
-const handleReset = () => {
+// データ初期化（DBも削除・初期化）
+const handleReset = async () => {
   balance.value = 1200
   history.value = [
     { id: 1, type: 'in', title: 'おこづかい', amount: 500, date: '8/15' },
     { id: 2, type: 'out', title: 'ジュース', amount: 120, date: '8/16' }
   ]
+  await saveStateToIDB('balance', balance.value)
+  await saveStateToIDB('history', history.value)
 }
 </script>
 
 <template>
   <div class="min-h-screen bg-slate-100 text-slate-800 font-sans p-4 md:p-8 flex flex-col items-center justify-center">
     
-    <!-- PC開発用：外枠コンテナ -->
     <div class="w-full max-w-5xl bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[720px]">
       
-      <!-- 左カラム：子ども用UI（スマホ実機風プレビュー） -->
+      <!-- 左カラム：子ども用UI -->
       <section class="lg:col-span-6 bg-amber-50 border-r border-slate-200 flex flex-col relative select-none">
-        
-        <!-- ヘッダー -->
         <header class="bg-amber-400 p-4 shadow-sm flex justify-between items-center rounded-b-3xl">
           <div class="flex items-center gap-2">
             <Wallet class="w-7 h-7 text-amber-950" />
@@ -113,7 +138,6 @@ const handleReset = () => {
             </h1>
           </div>
           
-          <!-- モード切替 -->
           <button
             @click="isParentMode = !isParentMode"
             :class="[
@@ -128,8 +152,6 @@ const handleReset = () => {
         </header>
 
         <div class="p-6 flex flex-col gap-6 flex-1 overflow-y-auto max-w-md mx-auto w-full">
-          
-          <!-- 親モード状態バナー -->
           <div v-if="isParentMode" class="bg-slate-800 text-slate-100 p-3 rounded-2xl text-xs flex justify-between items-center shadow-md">
             <span class="flex items-center gap-1.5 font-bold">
               <Shield class="w-4 h-4 text-amber-400" />
@@ -156,7 +178,6 @@ const handleReset = () => {
 
           <!-- 操作ボタン -->
           <div class="grid grid-cols-2 gap-4">
-            <!-- もらった！ボタン -->
             <button
               @click="openModal('in')"
               class="flex flex-col items-center justify-center gap-2 bg-emerald-400 hover:bg-emerald-500 active:translate-y-1 text-white font-black text-lg py-5 rounded-3xl shadow-[0_5px_0_#059669] active:shadow-none transition-all"
@@ -165,7 +186,6 @@ const handleReset = () => {
               <span>もらった！</span>
             </button>
 
-            <!-- つかった！ボタン -->
             <button
               @click="openModal('out')"
               class="flex flex-col items-center justify-center gap-2 bg-rose-400 hover:bg-rose-500 active:translate-y-1 text-white font-black text-lg py-5 rounded-3xl shadow-[0_5px_0_#e11d48] active:shadow-none transition-all"
@@ -201,10 +221,9 @@ const handleReset = () => {
         </div>
       </section>
 
-      <!-- 右カラム：PC開発用ダッシュボード ＆ デバッグパネル -->
+      <!-- 右カラム：PC開発用ダッシュボード -->
       <section class="lg:col-span-6 p-8 bg-slate-50 flex flex-col justify-between">
         <div class="space-y-6">
-          
           <div class="flex items-center justify-between border-b border-slate-200 pb-4">
             <div>
               <span class="text-xs font-mono font-bold text-amber-600 bg-amber-100 px-2.5 py-1 rounded-md">DEV MODE</span>
@@ -219,7 +238,6 @@ const handleReset = () => {
             </button>
           </div>
 
-          <!-- 親設定パネル -->
           <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
             <div class="flex items-center gap-2 text-slate-700 font-bold text-sm">
               <Shield class="w-4 h-4 text-slate-500" />
@@ -238,7 +256,6 @@ const handleReset = () => {
             </button>
           </div>
 
-          <!-- 任意操作テスト（金額自由追加） -->
           <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
             <h3 class="text-xs font-bold text-slate-700">クイックトランザクション追加</h3>
             <div class="grid grid-cols-2 gap-2">
@@ -257,16 +274,13 @@ const handleReset = () => {
             </div>
           </div>
 
-          <!-- リアルタイムデータ構造ログ -->
           <div class="bg-slate-900 text-slate-200 p-4 rounded-2xl font-mono text-[11px] space-y-2">
             <div class="text-slate-400 font-bold border-b border-slate-700 pb-1">State Log</div>
             <div>balance: <span class="text-amber-400">{{ balance }}</span></div>
             <div>isParentMode: <span class="text-sky-400">{{ isParentMode }}</span></div>
-            <div>isModalOpen: <span class="text-emerald-400">{{ isModalOpen }}</span></div>
-            <div>modalType: <span class="text-rose-400">{{ modalType }}</span></div>
+            <div>isLoaded: <span class="text-purple-400">{{ isLoaded }}</span></div>
             <div>history_count: <span class="text-emerald-400">{{ history.length }}</span></div>
           </div>
-
         </div>
 
         <p class="text-[11px] text-slate-400 text-center mt-6">
@@ -276,7 +290,6 @@ const handleReset = () => {
 
     </div>
 
-    <!-- モーダルコンポーネント配置 -->
     <TransactionModal
       v-model="isModalOpen"
       :type="modalType"
