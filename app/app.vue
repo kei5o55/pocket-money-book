@@ -1,17 +1,65 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { Wallet, Settings, Plus, Minus, History, Sparkles, Shield, User, RefreshCw } from 'lucide-vue-next'
+// モーダルコンポーネントのインポート
+import TransactionModal from '~/components/TransactionModal.vue'
 
 // リアクティブな状態管理（NuxtのuseStateを使用）
 const balance = useState<number>('balance', () => 1200)
 const isParentMode = useState<boolean>('isParentMode', () => false)
 
-const history = useState('history', () => [
+interface HistoryItem {
+  id: number
+  type: 'in' | 'out'
+  title: string
+  amount: number
+  date: string
+}
+
+const history = useState<HistoryItem[]>('history', () => [
   { id: 1, type: 'in', title: 'おこづかい', amount: 500, date: '8/15' },
   { id: 2, type: 'out', title: 'ジュース', amount: 120, date: '8/16' }
 ])
 
-// お小遣い追加
-const handleAdd = (amount: number, title: string) => {
+// モーダルの状態管理
+const isModalOpen = ref(false)
+const modalType = ref<'in' | 'out'>('in')
+
+// モーダルを開く
+const openModal = (type: 'in' | 'out') => {
+  modalType.value = type
+  isModalOpen.value = true
+}
+
+// モーダルからの送信イベントハンドラー
+const handleTransactionSubmit = (data: { amount: number; title: string; type: 'in' | 'out' }) => {
+  const amountNum = Number(data.amount)
+
+  // 支出（out）の場合の残高チェック
+  if (data.type === 'out' && balance.value < amountNum) {
+    alert('おかねが たりないよ！')
+    return
+  }
+
+  // 残高の更新
+  if (data.type === 'in') {
+    balance.value += amountNum
+  } else {
+    balance.value -= amountNum
+  }
+
+  // 履歴への追加
+  history.value.unshift({
+    id: Date.now(),
+    type: data.type,
+    title: data.title,
+    amount: amountNum,
+    date: '今日'
+  })
+}
+
+// 開発用直接追加・消費関数（デバッグパネル用）
+const handleAddDirect = (amount: number, title: string) => {
   balance.value += amount
   history.value.unshift({
     id: Date.now(),
@@ -22,8 +70,7 @@ const handleAdd = (amount: number, title: string) => {
   })
 }
 
-// 支出処理
-const handleUse = (amount: number, title: string) => {
+const handleUseDirect = (amount: number, title: string) => {
   if (balance.value < amount) {
     alert('おかねが たりないよ！')
     return
@@ -83,7 +130,7 @@ const handleReset = () => {
         <div class="p-6 flex flex-col gap-6 flex-1 overflow-y-auto max-w-md mx-auto w-full">
           
           <!-- 親モード状態バナー -->
-          <div v-if="isParentMode" class="bg-slate-800 text-slate-100 p-3 rounded-2xl text-xs flex justify-between items-center shadow-md animate-fade-in">
+          <div v-if="isParentMode" class="bg-slate-800 text-slate-100 p-3 rounded-2xl text-xs flex justify-between items-center shadow-md">
             <span class="flex items-center gap-1.5 font-bold">
               <Shield class="w-4 h-4 text-amber-400" />
               おうちのひと モード
@@ -109,16 +156,18 @@ const handleReset = () => {
 
           <!-- 操作ボタン -->
           <div class="grid grid-cols-2 gap-4">
+            <!-- もらった！ボタン -->
             <button
-              @click="handleAdd(100, 'おてつだい')"
+              @click="openModal('in')"
               class="flex flex-col items-center justify-center gap-2 bg-emerald-400 hover:bg-emerald-500 active:translate-y-1 text-white font-black text-lg py-5 rounded-3xl shadow-[0_5px_0_#059669] active:shadow-none transition-all"
             >
               <Plus class="w-7 h-7 stroke-[3]" />
               <span>もらった！</span>
             </button>
 
+            <!-- つかった！ボタン -->
             <button
-              @click="handleUse(100, 'かいもの')"
+              @click="openModal('out')"
               class="flex flex-col items-center justify-center gap-2 bg-rose-400 hover:bg-rose-500 active:translate-y-1 text-white font-black text-lg py-5 rounded-3xl shadow-[0_5px_0_#e11d48] active:shadow-none transition-all"
             >
               <Minus class="w-7 h-7 stroke-[3]" />
@@ -156,7 +205,6 @@ const handleReset = () => {
       <section class="lg:col-span-6 p-8 bg-slate-50 flex flex-col justify-between">
         <div class="space-y-6">
           
-          {/* 開発環境用タグ */}
           <div class="flex items-center justify-between border-b border-slate-200 pb-4">
             <div>
               <span class="text-xs font-mono font-bold text-amber-600 bg-amber-100 px-2.5 py-1 rounded-md">DEV MODE</span>
@@ -171,7 +219,7 @@ const handleReset = () => {
             </button>
           </div>
 
-          <!-- 親設定パネル（切り替えテスト用） -->
+          <!-- 親設定パネル -->
           <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
             <div class="flex items-center gap-2 text-slate-700 font-bold text-sm">
               <Shield class="w-4 h-4 text-slate-500" />
@@ -195,13 +243,13 @@ const handleReset = () => {
             <h3 class="text-xs font-bold text-slate-700">クイックトランザクション追加</h3>
             <div class="grid grid-cols-2 gap-2">
               <button 
-                @click="handleAdd(500, 'おこづかい')" 
+                @click="handleAddDirect(500, 'おこづかい')" 
                 class="py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-200 transition"
               >
                 +500円（定額）
               </button>
               <button 
-                @click="handleUse(120, 'ジュース')" 
+                @click="handleUseDirect(120, 'ジュース')" 
                 class="py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-lg border border-rose-200 transition"
               >
                 -120円（購入）
@@ -214,17 +262,26 @@ const handleReset = () => {
             <div class="text-slate-400 font-bold border-b border-slate-700 pb-1">State Log</div>
             <div>balance: <span class="text-amber-400">{{ balance }}</span></div>
             <div>isParentMode: <span class="text-sky-400">{{ isParentMode }}</span></div>
+            <div>isModalOpen: <span class="text-emerald-400">{{ isModalOpen }}</span></div>
+            <div>modalType: <span class="text-rose-400">{{ modalType }}</span></div>
             <div>history_count: <span class="text-emerald-400">{{ history.length }}</span></div>
           </div>
 
         </div>
 
-        <!-- フッターメモ -->
         <p class="text-[11px] text-slate-400 text-center mt-6">
           Next Step: Supabase 連携・PWA 設定
         </p>
       </section>
 
     </div>
+
+    <!-- モーダルコンポーネント配置 -->
+    <TransactionModal
+      v-model="isModalOpen"
+      :type="modalType"
+      @submit="handleTransactionSubmit"
+    />
+
   </div>
 </template>
