@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
-import { Wallet, Settings, Plus, Minus, History, Sparkles, Shield, User, RefreshCw } from 'lucide-vue-next'
+import { Wallet, Settings, Plus, Minus, History, Shield, User, RefreshCw, ArrowUpRight, ArrowDownLeft } from 'lucide-vue-next'
 import TransactionModal from '~/components/TransactionModal.vue'
 import { getStateFromIDB, saveStateToIDB } from '~/utils/db'
 
@@ -22,7 +22,7 @@ const history = useState<HistoryItem[]>('history', () => [
 
 const isModalOpen = ref(false)
 const modalType = ref<'in' | 'out'>('in')
-const isLoaded = ref(false) // 初回ロード完了フラグ（初期値による上書き防止）
+const isLoaded = ref(false)
 
 // ----------------------------------------------------
 // IndexedDB からのデータ復元 & 自動保存
@@ -41,7 +41,6 @@ onMounted(async () => {
   }
 })
 
-// 状態が変化したら IndexedDB へ自動保存（ロード完了後のみ実行）
 watch(balance, (newVal) => {
   if (isLoaded.value) saveStateToIDB('balance', newVal)
 })
@@ -111,7 +110,6 @@ const handleUseDirect = (amount: number, title: string) => {
   })
 }
 
-// データ初期化（DBも削除・初期化）
 const handleReset = async () => {
   balance.value = 1200
   history.value = [
@@ -124,166 +122,202 @@ const handleReset = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-100 text-slate-800 font-sans p-4 md:p-8 flex flex-col items-center justify-center">
+  <div class="min-h-screen bg-slate-900 text-slate-100 font-sans p-4 md:p-8 flex items-center justify-center">
     
-    <div class="w-full max-w-5xl bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[720px]">
+    <div class="w-full max-w-5xl bg-slate-800/80 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[720px]">
       
-      <!-- 左カラム：子ども用UI -->
-      <section class="lg:col-span-6 bg-amber-50 border-r border-slate-200 flex flex-col relative select-none">
-        <header class="bg-amber-400 p-4 shadow-sm flex justify-between items-center rounded-b-3xl">
-          <div class="flex items-center gap-2">
-            <Wallet class="w-7 h-7 text-amber-950" />
-            <h1 class="text-xl font-black text-amber-950 tracking-wider">
-              おこづかいちょう
-            </h1>
+      <!-- 左カラム：メインアプリUI (クリーン・洗練されたトーン) -->
+      <section class="lg:col-span-7 bg-slate-900/50 p-6 md:p-8 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-700/50 relative">
+        
+        <!-- ヘッダー -->
+        <header class="flex justify-between items-center mb-6">
+          <div class="flex items-center gap-3">
+            <div class="p-2.5 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 text-indigo-400">
+              <Wallet class="w-6 h-6" />
+            </div>
+            <div>
+              <h1 class="text-lg font-bold tracking-tight text-white">おこづかい帳</h1>
+              <p class="text-xs text-slate-400">Balance & History</p>
+            </div>
           </div>
           
           <button
             @click="isParentMode = !isParentMode"
             :class="[
-              'p-2 rounded-full border-2 transition',
+              'p-2.5 rounded-xl border text-xs font-semibold transition-all flex items-center gap-2',
               isParentMode
-                ? 'bg-slate-800 text-white border-slate-900'
-                : 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200'
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
             ]"
           >
             <Settings class="w-4 h-4" />
           </button>
         </header>
 
-        <div class="p-6 flex flex-col gap-6 flex-1 overflow-y-auto max-w-md mx-auto w-full">
-          <div v-if="isParentMode" class="bg-slate-800 text-slate-100 p-3 rounded-2xl text-xs flex justify-between items-center shadow-md">
-            <span class="flex items-center gap-1.5 font-bold">
+        <div class="space-y-6 flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
+          
+          <!-- 親モードバナー -->
+          <div v-if="isParentMode" class="bg-amber-500/10 border border-amber-500/20 text-amber-300 p-3.5 rounded-2xl text-xs flex justify-between items-center backdrop-blur-sm">
+            <span class="flex items-center gap-2 font-medium">
               <Shield class="w-4 h-4 text-amber-400" />
-              おうちのひと モード
+              保護者管理モードが有効です
             </span>
-            <button @click="isParentMode = false" class="text-amber-400 font-bold underline text-[11px]">
-              とじる
+            <button @click="isParentMode = false" class="text-amber-400 hover:underline text-[11px] font-semibold">
+              閉じる
             </button>
           </div>
 
-          <!-- 残高カード -->
-          <div class="bg-white border-4 border-amber-300 rounded-3xl p-6 text-center shadow-md relative overflow-hidden">
-            <div class="absolute -right-4 -bottom-4 opacity-10 pointer-events-none">
-              <Sparkles class="w-32 h-32 text-amber-500" />
-            </div>
-            <p class="text-xs font-bold text-slate-400 mb-1">いまのおかね</p>
-            <div class="flex justify-center items-baseline gap-1 text-amber-500">
-              <span class="text-5xl font-black tracking-tight">
+          <!-- 残高カード（カードデザイン＋モダングラデーション） -->
+          <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 to-indigo-800 p-7 text-white shadow-xl shadow-indigo-950/40 border border-indigo-400/20">
+            <div class="absolute -right-6 -bottom-6 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none" />
+            
+            <span class="text-xs font-medium tracking-wider uppercase text-indigo-200/80">現在の残高</span>
+            
+            <div class="mt-2 flex items-baseline gap-2">
+              <span class="text-5xl font-black tracking-tight text-white">
                 {{ balance.toLocaleString() }}
               </span>
-              <span class="text-xl font-bold">えん</span>
+              <span class="text-lg font-medium text-indigo-200">円</span>
             </div>
           </div>
 
-          <!-- 操作ボタン -->
-          <div class="grid grid-cols-2 gap-4">
+          <!-- アクションボタン（モダンなフラットボタンスタイル） -->
+          <div class="grid grid-cols-2 gap-3">
             <button
               @click="openModal('in')"
-              class="flex flex-col items-center justify-center gap-2 bg-emerald-400 hover:bg-emerald-500 active:translate-y-1 text-white font-black text-lg py-5 rounded-3xl shadow-[0_5px_0_#059669] active:shadow-none transition-all"
+              class="group relative flex items-center justify-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-[0.98] border border-emerald-500/30 text-emerald-400 font-semibold text-sm py-4 rounded-2xl transition-all"
             >
-              <Plus class="w-7 h-7 stroke-[3]" />
-              <span>もらった！</span>
+              <div class="p-1.5 rounded-lg bg-emerald-500/20 group-hover:bg-emerald-500/30 transition">
+                <Plus class="w-4 h-4 stroke-[2.5]" />
+              </div>
+              <span>もらった</span>
             </button>
 
             <button
               @click="openModal('out')"
-              class="flex flex-col items-center justify-center gap-2 bg-rose-400 hover:bg-rose-500 active:translate-y-1 text-white font-black text-lg py-5 rounded-3xl shadow-[0_5px_0_#e11d48] active:shadow-none transition-all"
+              class="group relative flex items-center justify-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 active:scale-[0.98] border border-rose-500/30 text-rose-400 font-semibold text-sm py-4 rounded-2xl transition-all"
             >
-              <Minus class="w-7 h-7 stroke-[3]" />
-              <span>つかった！</span>
+              <div class="p-1.5 rounded-lg bg-rose-500/20 group-hover:bg-rose-500/30 transition">
+                <Minus class="w-4 h-4 stroke-[2.5]" />
+              </div>
+              <span>つかった</span>
             </button>
           </div>
 
-          <!-- 履歴 -->
-          <div class="bg-white border-2 border-amber-200 rounded-3xl p-5 shadow-sm flex-1">
-            <div class="flex items-center gap-2 mb-3 text-slate-500 border-b border-amber-100 pb-2">
-              <History class="w-4 h-4" />
-              <h2 class="text-xs font-bold">つかった・もらった きろく</h2>
+          <!-- 取引履歴 -->
+          <div class="bg-slate-800/50 border border-slate-700/60 rounded-3xl p-5 flex-1 flex flex-col">
+            <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-700/40">
+              <div class="flex items-center gap-2 text-slate-400">
+                <History class="w-4 h-4" />
+                <h2 class="text-xs font-semibold uppercase tracking-wider">履歴</h2>
+              </div>
+              <span class="text-[11px] text-slate-500">{{ history.length }} 件</span>
             </div>
 
-            <ul class="flex flex-col gap-2.5 max-h-48 overflow-y-auto pr-1">
+            <ul class="flex flex-col gap-2 max-h-52 overflow-y-auto pr-1">
               <li
                 v-for="item in history"
                 :key="item.id"
-                class="flex justify-between items-center text-xs font-bold bg-amber-50/50 p-2 rounded-xl"
+                class="flex justify-between items-center text-xs p-3 rounded-xl bg-slate-800/80 border border-slate-700/30 hover:border-slate-600/50 transition"
               >
-                <div class="flex items-center gap-2">
-                  <span class="text-[10px] text-slate-400 font-normal">{{ item.date }}</span>
-                  <span>{{ item.title }}</span>
+                <div class="flex items-center gap-3">
+                  <div
+                    :class="[
+                      'p-1.5 rounded-lg',
+                      item.type === 'in' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
+                    ]"
+                  >
+                    <ArrowDownLeft v-if="item.type === 'in'" class="w-3.5 h-3.5" />
+                    <ArrowUpRight v-else class="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <p class="font-medium text-slate-200">{{ item.title }}</p>
+                    <p class="text-[10px] text-slate-500">{{ item.date }}</p>
+                  </div>
                 </div>
-                <span :class="item.type === 'in' ? 'text-emerald-600' : 'text-rose-500'">
-                  {{ item.type === 'in' ? '+' : '-' }}{{ item.amount }}円
+
+                <span :class="['font-semibold text-sm', item.type === 'in' ? 'text-emerald-400' : 'text-slate-300']">
+                  {{ item.type === 'in' ? '+' : '-' }}{{ item.amount.toLocaleString() }}円
                 </span>
               </li>
             </ul>
           </div>
         </div>
+
+        <p class="text-[11px] text-slate-500 text-center mt-4">PWA / Supabase Ready</p>
       </section>
 
-      <!-- 右カラム：PC開発用ダッシュボード -->
-      <section class="lg:col-span-6 p-8 bg-slate-50 flex flex-col justify-between">
+      <!-- 右カラム：PC開発者コントロールパネル -->
+      <section class="lg:col-span-5 p-6 md:p-8 bg-slate-800/30 flex flex-col justify-between">
         <div class="space-y-6">
-          <div class="flex items-center justify-between border-b border-slate-200 pb-4">
-            <div>
-              <span class="text-xs font-mono font-bold text-amber-600 bg-amber-100 px-2.5 py-1 rounded-md">DEV MODE</span>
-              <h2 class="text-lg font-bold text-slate-800 mt-2">開発用コントロールパネル</h2>
+          <div class="flex items-center justify-between border-b border-slate-700/50 pb-4">
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] font-mono font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-md">DEV</span>
+              <h2 class="text-sm font-semibold text-slate-200">コントロールパネル</h2>
             </div>
             <button 
               @click="handleReset" 
-              class="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 bg-white border border-slate-300 px-3 py-1.5 rounded-lg shadow-sm transition"
+              class="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-xl transition"
             >
               <RefreshCw class="w-3.5 h-3.5" />
-              データを初期化
+              初期化
             </button>
           </div>
 
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-            <div class="flex items-center gap-2 text-slate-700 font-bold text-sm">
-              <Shield class="w-4 h-4 text-slate-500" />
+          <!-- 親モード切替テスト -->
+          <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/50 space-y-3">
+            <div class="flex items-center gap-2 text-slate-300 font-medium text-xs">
+              <Shield class="w-4 h-4 text-indigo-400" />
               <span>保護者機能テスト</span>
             </div>
-            <p class="text-xs text-slate-500 leading-relaxed">
-              画面左上のギアアイコンを押すか、以下のスイッチで「親モード」の表示状態を確認できます。
+            <p class="text-xs text-slate-400 leading-relaxed">
+              表示フラグを切り替えて、親用UIのトグル動作を確認できます。
             </p>
             <button
               @click="isParentMode = !isParentMode"
-              class="w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"
-              :class="isParentMode ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'"
+              class="w-full py-2 px-3 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 border"
+              :class="isParentMode 
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' 
+                : 'bg-slate-700/50 border-slate-600/50 text-slate-300 hover:bg-slate-700'"
             >
-              <User class="w-4 h-4" />
-              現在の状態: {{ isParentMode ? '親モード ON' : '子どもモード' }}
+              <User class="w-3.5 h-3.5" />
+              状態: {{ isParentMode ? '親モード ON' : '子どもモード' }}
             </button>
           </div>
 
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-            <h3 class="text-xs font-bold text-slate-700">クイックトランザクション追加</h3>
+          <!-- クイックテスト -->
+          <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/50 space-y-3">
+            <h3 class="text-xs font-medium text-slate-300">クイックトランザクション追加</h3>
             <div class="grid grid-cols-2 gap-2">
               <button 
                 @click="handleAddDirect(500, 'おこづかい')" 
-                class="py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-200 transition"
+                class="py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-medium rounded-xl border border-emerald-500/20 transition"
               >
-                +500円（定額）
+                +500円 (入金)
               </button>
               <button 
                 @click="handleUseDirect(120, 'ジュース')" 
-                class="py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-lg border border-rose-200 transition"
+                class="py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-medium rounded-xl border border-rose-500/20 transition"
               >
-                -120円（購入）
+                -120円 (出金)
               </button>
             </div>
           </div>
 
-          <div class="bg-slate-900 text-slate-200 p-4 rounded-2xl font-mono text-[11px] space-y-2">
-            <div class="text-slate-400 font-bold border-b border-slate-700 pb-1">State Log</div>
-            <div>balance: <span class="text-amber-400">{{ balance }}</span></div>
-            <div>isParentMode: <span class="text-sky-400">{{ isParentMode }}</span></div>
-            <div>isLoaded: <span class="text-purple-400">{{ isLoaded }}</span></div>
-            <div>history_count: <span class="text-emerald-400">{{ history.length }}</span></div>
+          <!-- リアクティブ状態ログ -->
+          <div class="bg-slate-950/80 text-slate-300 p-4 rounded-2xl font-mono text-[11px] space-y-2 border border-slate-800">
+            <div class="text-slate-500 font-bold border-b border-slate-800 pb-1 flex justify-between">
+              <span>STATE MONITOR</span>
+              <span class="text-emerald-400">● Live</span>
+            </div>
+            <div class="flex justify-between"><span>balance:</span> <span class="text-indigo-400 font-bold">{{ balance }}</span></div>
+            <div class="flex justify-between"><span>isParentMode:</span> <span class="text-amber-400">{{ isParentMode }}</span></div>
+            <div class="flex justify-between"><span>isLoaded:</span> <span class="text-emerald-400">{{ isLoaded }}</span></div>
+            <div class="flex justify-between"><span>history_count:</span> <span class="text-slate-400">{{ history.length }}</span></div>
           </div>
         </div>
 
-        <p class="text-[11px] text-slate-400 text-center mt-6">
+        <p class="text-[11px] text-slate-500 text-center mt-6">
           Next Step: Supabase 連携・PWA 設定
         </p>
       </section>
