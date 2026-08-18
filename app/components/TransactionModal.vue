@@ -29,7 +29,7 @@ watch(isOpen, (newVal) => {
 
 const handleSubmit = () => {
   if (!form.value.title.trim()) {
-    alert('なまえ（りゆう）を 入力してね！')
+    alert('りゆうを 入力してね！')
     return
   }
   if (form.value.amount <= 0) {
@@ -50,45 +50,34 @@ const handleSubmit = () => {
   <Teleport to="body">
     <div
       v-if="isOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 animate-fade-in"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in"
     >
       <div
-        class="bg-slate-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-slate-700/60 transition-all space-y-6 relative overflow-hidden text-slate-100"
+        class="bg-white w-full max-w-sm rounded-[32px] p-6 shadow-2xl border-4 border-amber-300 transition-all space-y-6 relative overflow-hidden text-slate-800"
       >
-        <!-- 背景アクセントグラデーション -->
-        <div
-          :class="[
-            'absolute -top-20 -right-20 w-40 h-40 rounded-full blur-3xl pointer-events-none opacity-20',
-            type === 'in' ? 'bg-emerald-500' : 'bg-rose-500'
-          ]"
-        />
-
         <!-- 閉じるボタン -->
         <button
           @click="isOpen = false"
-          class="absolute top-4 right-4 text-slate-400 hover:text-slate-200 p-2 rounded-xl bg-slate-800/60 border border-slate-700/40 hover:bg-slate-700/60 transition"
+          class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-2 rounded-2xl bg-amber-50 border border-amber-200 transition"
         >
-          <X class="w-4 h-4" />
+          <X class="w-5 h-5 stroke-[2.5]" />
         </button>
 
         <!-- ヘッダー -->
         <div class="flex items-center gap-3">
           <div
             :class="[
-              'p-3 rounded-2xl border',
-              type === 'in'
-                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+              'p-3 rounded-2xl text-white shadow-md',
+              type === 'in' ? 'bg-emerald-400' : 'bg-rose-400'
             ]"
           >
-            <ArrowDownLeft v-if="type === 'in'" class="w-5 h-5" />
-            <ArrowUpRight v-else class="w-5 h-5" />
+            <ArrowDownLeft v-if="type === 'in'" class="w-6 h-6 stroke-[3]" />
+            <ArrowUpRight v-else class="w-6 h-6 stroke-[3]" />
           </div>
           <div>
-            <h2 class="text-base font-bold text-white">
+            <h2 class="text-xl font-black text-slate-800">
               {{ type === 'in' ? 'おかねを もらった' : 'おかねを つかった' }}
             </h2>
-            <p class="text-xs text-slate-400">新しい記録を追加します</p>
           </div>
         </div>
 
@@ -96,17 +85,17 @@ const handleSubmit = () => {
         <div class="space-y-4">
           <!-- 金額入力 -->
           <div>
-            <label class="block text-xs font-medium text-slate-400 mb-1.5">いくら？（円）</label>
+            <label class="block text-xs font-black text-amber-900 mb-1.5">いくら？（円）</label>
             <div class="relative flex items-center">
               <input
                 v-model.number="form.amount"
                 type="number"
                 step="10"
-                class="w-full text-center text-3xl font-black bg-slate-950/60 border rounded-2xl py-3.5 focus:outline-none transition-all tracking-tight"
+                class="w-full text-center text-4xl font-black bg-amber-50/50 border-2 rounded-2xl py-3 focus:outline-none transition-all tracking-tight"
                 :class="[
                   type === 'in'
-                    ? 'text-emerald-400 border-emerald-500/30 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50'
-                    : 'text-rose-400 border-rose-500/30 focus:border-rose-500 focus:ring-1 focus:ring-rose-500/50'
+                    ? 'text-emerald-600 border-emerald-300 focus:border-emerald-500'
+                    : 'text-rose-600 border-rose-300 focus:border-rose-500'
                 ]"
               />
             </div>
@@ -114,15 +103,14 @@ const handleSubmit = () => {
 
           <!-- 理由・項目入力 -->
           <div>
-            <label class="block text-xs font-medium text-slate-400 mb-1.5">
-              {{ type === 'in' ? 'なんの おかね？（理由）' : 'なにを かったの？（理由）' }}
+            <label class="block text-xs font-black text-amber-900 mb-1.5">
+              {{ type === 'in' ? 'なにで もらった？' : 'なにに つかった？' }}
             </label>
             <input
               v-model="form.title"
               type="text"
-              :placeholder="type === 'in' ? '例: おてつだい、お小遣い' : '例: ジュース、おかし'"
-              class="w-full text-sm font-medium text-slate-200 bg-slate-950/60 border border-slate-700/60 rounded-2xl p-3.5 focus:outline-none transition-all placeholder:text-slate-600"
-              :class="type === 'in' ? 'focus:border-emerald-500/80' : 'focus:border-rose-500/80'"
+              :placeholder="type === 'in' ? '例: おてつだい、おこづかい' : '例: ジュース、おかし'"
+              class="w-full text-base font-bold text-slate-800 bg-amber-50/50 border-2 border-amber-200 rounded-2xl p-3.5 focus:outline-none focus:border-amber-400 transition-all placeholder:text-slate-300"
             />
           </div>
         </div>
@@ -130,15 +118,15 @@ const handleSubmit = () => {
         <!-- 登録ボタン -->
         <button
           @click="handleSubmit"
-          class="w-full flex items-center justify-center gap-2 text-white font-semibold text-sm py-3.5 rounded-2xl shadow-lg transition-all active:scale-[0.98]"
+          class="w-full flex items-center justify-center gap-2 text-white font-black text-lg py-4 rounded-2xl transition-all active:scale-95 shadow-md active:shadow-none active:translate-y-1"
           :class="[
             type === 'in'
-              ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-950/50'
-              : 'bg-rose-600 hover:bg-rose-500 shadow-rose-950/50'
+              ? 'bg-emerald-400 hover:bg-emerald-500 shadow-[0_4px_0_#059669]'
+              : 'bg-rose-400 hover:bg-rose-500 shadow-[0_4px_0_#e11d48]'
           ]"
         >
-          <Check class="w-4 h-4 stroke-[2.5]" />
-          <span>記録を保存する</span>
+          <Check class="w-6 h-6 stroke-[3]" />
+          <span>できた</span>
         </button>
       </div>
     </div>
